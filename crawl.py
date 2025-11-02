@@ -11,7 +11,8 @@ BLOCKED_CATEGORIES = ["Advertising", "Analytics", "Social", "FingerprintingInvas
 with open('services.json', 'r') as f:
     SERVICES = json.load(f)
 
-ACCEPT_WORDS = ["akkoord", "accept", "akzeptieren", "agree", "accepter", "accetta", "continue", "i agree"]
+ACCEPT_WORDS = ["akkoord", "accept", "akzeptieren", "agree", "accepter", "accetta", "continue", "i agree", "accepter et continuer"]
+REJECT_WORDS = ["alles weigeren", "alles afwijzen", "reject all", "alle ablehnen", "reject", "refuse all", "deny", "rifiuta tutto", "deny all", "reject all purposes", "essential cookies only", "i reject all (except strictly necessary)", "no, i do not accept" ]
 
 def get_sld_from_url(url):
     return get_sld(urlparse(url).netloc)
@@ -76,6 +77,9 @@ def accept_cookies(page):
 
     print(f"No cookie accept button found on {page.url}")
 
+def reject_cookies(page):
+
+
 def scroll_down_in_steps(page):
     at_bottom = False
     while not at_bottom:
@@ -96,6 +100,7 @@ def crawl_site(page, site, mode):
     if mode == "accept" or mode == "block":
         accept_cookies(page)
     elif mode == "reject":
+        #reject_cookies(page)
         pass  # Implement reject logic
     sleep(5)
     page.screenshot(path=f"screenshots/{site['domain']}_after.png")
