@@ -68,7 +68,7 @@ def accept_cookies(page):    # Try on the main page first
             frame_buttons = frame.query_selector_all("button")
             frame_links = frame.query_selector_all("a")
             frame_url = getattr(frame, 'url', page.url)
-            if find_and_click(frame_buttons + frame_links, frame_url):
+            if find_and_click(frame_buttons + frame_links, frame_url, , ACCEPT_WORDS):
                 return
         except Exception:
             # Accessing cross-origin frame contents or detached frames may raise; skip
@@ -156,16 +156,17 @@ def crawl_site(page, site, mode):
     url = site['domain']
     page.goto(f"https://{url}")
     sleep(10)
-    page.screenshot(path=f"screenshots_{mode}/{site['domain']}_before.png")
+    page.screenshot(path=f"screenshots_{mode}/{site['domain']}_before.png", full_page=True)
     if mode == "accept" or mode == "block":
         accept_cookies(page)
     elif mode == "reject":
-        #should we not first check whether we can reject cookies immediately?
+        reject_cookies(page)
+        sleep(2)
         open_cookie_settings(page)
         sleep(2)
         reject_cookies(page)
     sleep(5)
-    page.screenshot(path=f"screenshots_{mode}/{site['domain']}_after.png")
+    page.screenshot(path=f"screenshots_{mode}/{site['domain']}_after.png", full_page=True)
     scroll_down_in_steps(page)
     sleep(5)
 
