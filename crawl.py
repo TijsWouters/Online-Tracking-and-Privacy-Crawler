@@ -11,7 +11,7 @@ BLOCKED_CATEGORIES = ["Advertising", "Analytics", "Social", "FingerprintingInvas
 with open('services.json', 'r') as f:
     SERVICES = json.load(f)
 
-ACCEPT_WORDS = ["akkoord", "accept", "akzeptieren", "agree", "accepter", "accetta", "continue", "i agree", "accepter et continuer"]
+ACCEPT_WORDS = ["akkoord", "accept", "akzeptieren", "agree", "accepter", "accetta", "continue", "i agree", "accepter et continuer", "accepter les cookies", "accept all", "yes, i agree", "alle akzeptieren", "allow all", "yes, i accept"]
 
 REJECT_WORDS = ["alles weigeren", "alles afwijzen", "reject all", "alle ablehnen", "reject", "refuse all", "deny", "rifiuta", "deny all", "reject all purposes", "essential cookies only", "i reject all (except strictly necessary)", "no, i do not accept", "continua senza accettare"]
 SETTING_WORDS = ["instellen", "settings", "stel voorkeuren in", "einstellungen", "preferenze", "set preferences", "cookie settings", "cookie preferences", "einstellungen oder ablehnen", "personalizza", "view options", "manage preferences", "show purposes", "manage choices", "see purposes and manage privacy choices", "customize settings", "manage", "manage settings", "manage cookies"]
