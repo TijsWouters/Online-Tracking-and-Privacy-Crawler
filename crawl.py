@@ -160,6 +160,7 @@ def crawl_site(page, site, mode):
     if mode == "accept" or mode == "block":
         accept_cookies(page)
     elif mode == "reject":
+        #should we not first check whether we can reject cookies immediately?
         open_cookie_settings(page)
         sleep(2)
         reject_cookies(page)
