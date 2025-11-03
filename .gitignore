@@ -1,5 +1,14 @@
+videos_accept
+videos_reject
+videos_block
 videos
+screenshots_accept
+screenshots_reject
+screenshots_block
 screenshots
+har_logs_block
+har_logs_accept
+har_logs_reject
 har_logs
 blocked_requests_results.json
 test_list.csv

@@ -12,7 +12,9 @@ with open('services.json', 'r') as f:
     SERVICES = json.load(f)
 
 ACCEPT_WORDS = ["akkoord", "accept", "akzeptieren", "agree", "accepter", "accetta", "continue", "i agree", "accepter et continuer"]
-REJECT_WORDS = ["alles weigeren", "alles afwijzen", "reject all", "alle ablehnen", "reject", "refuse all", "deny", "rifiuta tutto", "deny all", "reject all purposes", "essential cookies only", "i reject all (except strictly necessary)", "no, i do not accept" ]
+
+REJECT_WORDS = ["alles weigeren", "alles afwijzen", "reject all", "alle ablehnen", "reject", "refuse all", "deny", "rifiuta", "deny all", "reject all purposes", "essential cookies only", "i reject all (except strictly necessary)", "no, i do not accept", "continua senza accettare"]
+SETTING_WORDS = ["instellen", "settings", "stel voorkeuren in", "einstellungen", "preferenze", "set preferences", "cookie settings", "cookie preferences"]
 
 def get_sld_from_url(url):
     return get_sld(urlparse(url).netloc)
@@ -25,31 +27,28 @@ def read_sites_csv(file_path):
             sites.append(row)
     return sites
 
-def accept_cookies(page):
-    # Helper: try to find and click an element from a list of ElementHandle objects
-    def _find_and_click(elements, context_url):
-        for element in elements:
+def find_and_click(elements, context_url, keywords):
+    for element in elements:
+        try:
+            text = element.inner_text().lower().strip()
+        except Exception:
+            # Some element handles may be detached or inaccessible; skip them
+            continue
+        # Match if any keyword appears in the element text
+        if any(word in text for word in keywords):
             try:
-                text = element.inner_text().lower().strip()
-            except Exception:
-                # Some element handles may be detached or inaccessible; skip them
-                continue
-            # Match if any accept word appears in the element text
-            if any(word in text for word in ACCEPT_WORDS):
-                try:
-                    element.scroll_into_view_if_needed()
-                    element.click()
-                except Exception:
-                    print(f"Failed to click cookie accept button on {context_url} with text: {text}")
-                    print(Exception)
+                element.scroll_into_view_if_needed()
+                element.click()
                 return True
-        return False
+            except Exception:
+                print(f"Failed to click button on {context_url} with text: {text}")
+    return False
 
-    # Try on the main page first
+def accept_cookies(page):    # Try on the main page first
     try:
         buttons = page.query_selector_all("button")
         links = page.query_selector_all("a")
-        if _find_and_click(buttons + links, page.url):
+        if find_and_click(buttons + links, page.url, ACCEPT_WORDS):
             return
     except Exception:
         # If querying the main page fails for some reason, continue to frames
@@ -69,7 +68,7 @@ def accept_cookies(page):
             frame_buttons = frame.query_selector_all("button")
             frame_links = frame.query_selector_all("a")
             frame_url = getattr(frame, 'url', page.url)
-            if _find_and_click(frame_buttons + frame_links, frame_url):
+            if find_and_click(frame_buttons + frame_links, frame_url):
                 return
         except Exception:
             # Accessing cross-origin frame contents or detached frames may raise; skip
@@ -77,8 +76,69 @@ def accept_cookies(page):
 
     print(f"No cookie accept button found on {page.url}")
 
-def reject_cookies(page):
+def open_cookie_settings(page):
+    try:
+        buttons = page.query_selector_all("button")
+        links = page.query_selector_all("a")
+        if find_and_click(buttons + links, page.url, SETTING_WORDS):
+            return
+    except Exception:
+        # If querying the main page fails for some reason, continue to frames
+        pass
 
+    # Then try each iframe/frame (skip main frame when present to avoid duplicate work)
+    try:
+        main_frame = page.main_frame()
+    except Exception:
+        main_frame = None
+
+    for frame in page.frames:
+        try:
+            if main_frame is not None and frame == main_frame:
+                continue
+            # Query buttons and links inside the frame
+            frame_buttons = frame.query_selector_all("button")
+            frame_links = frame.query_selector_all("a")
+            frame_url = getattr(frame, 'url', page.url)
+            if find_and_click(frame_buttons + frame_links, frame_url, SETTING_WORDS):
+                return
+        except Exception:
+            # Accessing cross-origin frame contents or detached frames may raise; skip
+            continue
+
+def reject_cookies(page):
+    # Try on the main page first
+    try:
+        buttons = page.query_selector_all("button")
+        links = page.query_selector_all("a")
+        if find_and_click(buttons + links, page.url, REJECT_WORDS):
+            return
+    except Exception:
+        # If querying the main page fails for some reason, continue to frames
+        print(f"Error querying main page {page.url} for reject buttons")
+
+    # Then try each iframe/frame (skip main frame when present to avoid duplicate work)
+    try:
+        main_frame = page.main_frame()
+    except Exception:
+        main_frame = None
+
+    for frame in page.frames:
+        try:
+            if main_frame is not None and frame == main_frame:
+                continue
+            # Query buttons and links inside the frame
+            frame_buttons = frame.query_selector_all("button")
+            frame_links = frame.query_selector_all("a")
+            frame_url = getattr(frame, 'url', page.url)
+            if find_and_click(frame_buttons + frame_links, frame_url, REJECT_WORDS):
+                return
+        except Exception:
+            # Accessing cross-origin frame contents or detached frames may raise; skip
+            print(f"Error querying frame {frame.url} for reject buttons")
+            continue
+
+    print(f"No cookie reject button found on {page.url}")
 
 def scroll_down_in_steps(page):
     at_bottom = False
@@ -96,18 +156,19 @@ def crawl_site(page, site, mode):
     url = site['domain']
     page.goto(f"https://{url}")
     sleep(10)
-    page.screenshot(path=f"screenshots/{site['domain']}_before.png")
+    page.screenshot(path=f"screenshots_{mode}/{site['domain']}_before.png")
     if mode == "accept" or mode == "block":
         accept_cookies(page)
     elif mode == "reject":
-        #reject_cookies(page)
-        pass  # Implement reject logic
+        open_cookie_settings(page)
+        sleep(2)
+        reject_cookies(page)
     sleep(5)
-    page.screenshot(path=f"screenshots/{site['domain']}_after.png")
+    page.screenshot(path=f"screenshots_{mode}/{site['domain']}_after.png")
     scroll_down_in_steps(page)
     sleep(5)
 
-def check_route_block(route, site, blocked_requests):
+def check_route_block(route, blocked_requests):
     for category in BLOCKED_CATEGORIES:
         if category in SERVICES["categories"]:
             for entity in SERVICES["categories"][category]:
@@ -148,15 +209,16 @@ if __name__ == "__main__":
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=False)
         for site in sites:
-            context = browser.new_context(record_har_path=f"har_logs/{site['domain']}.har", record_video_dir=f"videos/{site['domain']}")
+            context = browser.new_context(record_har_path=f"har_logs_{mode}/{site['domain']}.har", record_video_dir=f"videos_{mode}/{site['domain']}")
             page = context.new_page()
             if mode == "block":
-                page.route('**/*', lambda route: check_route_block(route, site, blocked_requests))
+                page.route('**/*', lambda route: check_route_block(route, blocked_requests))
             crawl_site(page, site, mode)
             page.close()
             context.close()
 
         browser.close()
     
-    with open('blocked_requests_results.json', 'w') as f:
-        json.dump(blocked_requests, f, indent=4)
+    if mode == "block":
+        with open('blocked_requests_results.json', 'w') as f:
+            json.dump(blocked_requests, f, indent=4)
