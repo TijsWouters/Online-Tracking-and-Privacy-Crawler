@@ -68,7 +68,7 @@ def accept_cookies(page):    # Try on the main page first
             frame_buttons = frame.query_selector_all("button")
             frame_links = frame.query_selector_all("a")
             frame_url = getattr(frame, 'url', page.url)
-            if find_and_click(frame_buttons + frame_links, frame_url, , ACCEPT_WORDS):
+            if find_and_click(frame_buttons + frame_links, frame_url, ACCEPT_WORDS):
                 return
         except Exception:
             # Accessing cross-origin frame contents or detached frames may raise; skip
