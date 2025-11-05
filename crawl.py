@@ -1,6 +1,7 @@
 import csv
 from random import random
-from time import sleep
+import re
+from time import sleep, time
 from playwright.sync_api import sync_playwright
 from sys import argv
 import json
@@ -11,9 +12,8 @@ BLOCKED_CATEGORIES = ["Advertising", "Analytics", "Social", "FingerprintingInvas
 with open('services.json', 'r') as f:
     SERVICES = json.load(f)
 
-ACCEPT_WORDS = ["akkoord", "accept", "akzeptieren", "agree", "accepter", "accetta", "continue", "i agree", "accepter et continuer", "accepter les cookies", "accept all", "yes, i agree", "alle akzeptieren", "allow all", "yes, i accept", "accetta tutti i cookie"]
-
-REJECT_WORDS = ["alles weigeren", "alles afwijzen", "reject all", "alle ablehnen", "reject", "refuse all", "deny", "rifiuta", "deny all", "reject all purposes", "essential cookies only", "i reject all (except strictly necessary)", "no, i do not accept", "continua senza accettare"]
+ACCEPT_WORDS = ["akkoord", "accept", "i accept all", "i accept", "akzeptieren", "agree", "accepter", "accetta", "accetta e chiudi", "accetta e continua", "continue", "i agree", "accepter et continuer", "accepter les cookies", "accept all", "yes, i agree", "alle akzeptieren", "allow all", "yes, i accept", "accetta tutti i cookie", "accept, i am 24+"]
+REJECT_WORDS = ["alles weigeren", "alles afwijzen", "reject all", "alle ablehnen", "reject", "refuse all", "deny", "rifiuta", "rifiuta tutto", "deny all", "reject all purposes", "essential cookies only", "i reject all (except strictly necessary)", "no, i do not accept", "continua senza accettare", "i do not agree"]
 SETTING_WORDS = ["instellen", "settings", "stel voorkeuren in", "einstellungen", "preferenze", "set preferences", "cookie settings", "cookie preferences", "einstellungen oder ablehnen", "personalizza", "view options", "manage preferences", "show purposes", "manage choices", "see purposes and manage privacy choices", "customize settings", "manage", "manage settings", "manage cookies"]
 
 def get_sld_from_url(url):
@@ -27,28 +27,37 @@ def read_sites_csv(file_path):
             sites.append(row)
     return sites
 
-def find_and_click(elements, context_url, keywords):
+def find_candidates(scope, keywords):
+    accept_regex = re.compile(rf"^(?:{'|'.join(map(re.escape, keywords))})$", re.I)
+    candidates = []
+    try:
+        buttons = scope.query_selector_all("button")
+        buttons = [btn for btn in buttons if accept_regex.search(btn.inner_text().strip())]
+        links = scope.query_selector_all("a")
+        links = [link for link in links if accept_regex.search(link.inner_text().strip())]
+        candidates.extend(buttons)
+        candidates.extend(links)
+    except Exception:
+        pass
+
+    return candidates
+
+def find_and_click(scope, keywords):
+    elements = find_candidates(scope, keywords)
     for element in elements:
-        try:
-            text = element.inner_text().lower().strip()
-        except Exception:
-            # Some element handles may be detached or inaccessible; skip them
+        if not element.is_visible():
             continue
-        # Match if any keyword appears in the element text
-        if any(word in text for word in keywords):
-            try:
-                element.scroll_into_view_if_needed()
-                element.click()
-                return True
-            except Exception:
-                print(f"Failed to click button on {context_url} with text: {text}")
+        try:
+            element.scroll_into_view_if_needed()
+            element.click(timeout=3000)
+            return True
+        except Exception:
+            print(f"Failed to click button on {scope.url} with text: {element.inner_text()}")
     return False
 
 def accept_cookies(page):    # Try on the main page first
     try:
-        buttons = page.query_selector_all("button")
-        links = page.query_selector_all("a")
-        if find_and_click(buttons + links, page.url, ACCEPT_WORDS):
+        if find_and_click(page, ACCEPT_WORDS):
             return
     except Exception:
         # If querying the main page fails for some reason, continue to frames
@@ -64,11 +73,7 @@ def accept_cookies(page):    # Try on the main page first
         try:
             if main_frame is not None and frame == main_frame:
                 continue
-            # Query buttons and links inside the frame
-            frame_buttons = frame.query_selector_all("button")
-            frame_links = frame.query_selector_all("a")
-            frame_url = getattr(frame, 'url', page.url)
-            if find_and_click(frame_buttons + frame_links, frame_url, ACCEPT_WORDS):
+            if find_and_click(frame, ACCEPT_WORDS):
                 return
         except Exception:
             # Accessing cross-origin frame contents or detached frames may raise; skip
@@ -78,9 +83,7 @@ def accept_cookies(page):    # Try on the main page first
 
 def open_cookie_settings(page):
     try:
-        buttons = page.query_selector_all("button")
-        links = page.query_selector_all("a")
-        if find_and_click(buttons + links, page.url, SETTING_WORDS):
+        if find_and_click(page, SETTING_WORDS):
             return
     except Exception:
         # If querying the main page fails for some reason, continue to frames
@@ -97,10 +100,7 @@ def open_cookie_settings(page):
             if main_frame is not None and frame == main_frame:
                 continue
             # Query buttons and links inside the frame
-            frame_buttons = frame.query_selector_all("button")
-            frame_links = frame.query_selector_all("a")
-            frame_url = getattr(frame, 'url', page.url)
-            if find_and_click(frame_buttons + frame_links, frame_url, SETTING_WORDS):
+            if find_and_click(frame, SETTING_WORDS):
                 return
         except Exception:
             # Accessing cross-origin frame contents or detached frames may raise; skip
@@ -109,9 +109,7 @@ def open_cookie_settings(page):
 def reject_cookies(page):
     # Try on the main page first
     try:
-        buttons = page.query_selector_all("button")
-        links = page.query_selector_all("a")
-        if find_and_click(buttons + links, page.url, REJECT_WORDS):
+        if find_and_click(page, REJECT_WORDS):
             return
     except Exception:
         # If querying the main page fails for some reason, continue to frames
@@ -128,10 +126,7 @@ def reject_cookies(page):
             if main_frame is not None and frame == main_frame:
                 continue
             # Query buttons and links inside the frame
-            frame_buttons = frame.query_selector_all("button")
-            frame_links = frame.query_selector_all("a")
-            frame_url = getattr(frame, 'url', page.url)
-            if find_and_click(frame_buttons + frame_links, frame_url, REJECT_WORDS):
+            if find_and_click(frame, REJECT_WORDS):
                 return
         except Exception:
             # Accessing cross-origin frame contents or detached frames may raise; skip
@@ -142,15 +137,35 @@ def reject_cookies(page):
 
 def scroll_down_in_steps(page):
     at_bottom = False
+    page_height = page.evaluate("""() => {
+        const el = document.scrollingElement || document.documentElement;
+        return el.scrollHeight;
+    }""")
     while not at_bottom:
         page.evaluate(
-            "window.scrollBy(0,%d)" % (10 + int(1000 * random()))
+            "window.scrollBy(0,%d)" % (10 + int(page_height/10 * random()))
         )
         at_bottom = page.evaluate("""() => {
             const el = document.scrollingElement || document.documentElement;
             return el.scrollTop + el.clientHeight >= el.scrollHeight - 50;
         }""")
         sleep(0.5 + random())
+
+
+def format_seconds(seconds: float) -> str:
+    """Format seconds into H:MM:SS or M:SS for printing."""
+    try:
+        seconds = int(round(seconds))
+    except Exception:
+        return "unknown"
+    if seconds < 0:
+        seconds = 0
+    hrs = seconds // 3600
+    mins = (seconds % 3600) // 60
+    secs = seconds % 60
+    if hrs:
+        return f"{hrs}:{mins:02d}:{secs:02d}"
+    return f"{mins}:{secs:02d}"
 
 def crawl_site(page, site, mode):
     url = site['domain']
@@ -160,8 +175,6 @@ def crawl_site(page, site, mode):
     if mode == "accept" or mode == "block":
         accept_cookies(page)
     elif mode == "reject":
-        reject_cookies(page)
-        sleep(2)
         open_cookie_settings(page)
         sleep(2)
         reject_cookies(page)
@@ -210,12 +223,25 @@ if __name__ == "__main__":
 
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=False)
-        for site in sites:
+        total = len(sites)
+        run_start = time()
+        for idx, site in enumerate(sites, start=1):
+            site_start = time()
+            print()
             context = browser.new_context(record_har_path=f"har_logs_{mode}/{site['domain']}.har", record_video_dir=f"videos_{mode}/{site['domain']}")
             page = context.new_page()
             if mode == "block":
                 page.route('**/*', lambda route: check_route_block(route, blocked_requests))
-            crawl_site(page, site, mode)
+            try:
+                crawl_site(page, site, mode)
+            except Exception as e:
+                print(f"Error crawling {site['domain']}: {e}")
+            finally:
+                elapsed = time() - site_start
+                avg = (time() - run_start) / idx if idx > 0 else elapsed
+                remaining = total - idx
+                eta = avg * remaining
+                print(f"({idx}/{total}) {site['domain']} crawled in {elapsed:.1f}s — ETA {format_seconds(eta)}")
             page.close()
             context.close()
 
