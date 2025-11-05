@@ -12,7 +12,7 @@ BLOCKED_CATEGORIES = ["Advertising", "Analytics", "Social", "FingerprintingInvas
 with open('services.json', 'r') as f:
     SERVICES = json.load(f)
 
-ACCEPT_WORDS = ["akkoord", "accept", "i accept all", "i accept", "akzeptieren", "agree", "accepter", "accetta", "accetta e chiudi", "accetta e continua", "continue", "i agree", "accepter et continuer", "accepter les cookies", "accept all", "yes, i agree", "alle akzeptieren", "allow all", "yes, i accept", "accetta tutti i cookie", "accept, i am 24+"]
+ACCEPT_WORDS = ["akkoord", "accept", "i accept all", "i accept", "akzeptieren", "agree", "accepter", "accetta", "accetta e chiudi", "accetta e continua", "i agree", "accepter et continuer", "accepter les cookies", "accept all", "yes, i agree", "alle akzeptieren", "allow all", "yes, i accept", "accetta tutti i cookie", "accept, i am 24+"]
 REJECT_WORDS = ["alles weigeren", "alles afwijzen", "reject all", "alle ablehnen", "reject", "refuse all", "deny", "rifiuta", "rifiuta tutto", "deny all", "reject all purposes", "essential cookies only", "i reject all (except strictly necessary)", "no, i do not accept", "continua senza accettare", "i do not agree"]
 SETTING_WORDS = ["instellen", "settings", "stel voorkeuren in", "einstellungen", "preferenze", "set preferences", "cookie settings", "cookie preferences", "einstellungen oder ablehnen", "personalizza", "view options", "manage preferences", "show purposes", "manage choices", "see purposes and manage privacy choices", "customize settings", "manage", "manage settings", "manage cookies"]
 
@@ -171,7 +171,7 @@ def crawl_site(page, site, mode):
     url = site['domain']
     page.goto(f"https://{url}")
     sleep(10)
-    page.screenshot(path=f"screenshots_{mode}/{site['domain']}_before.png", full_page=True)
+    page.screenshot(path=f"screenshots_{mode}/{site['domain']}_before.png")#, full_page=True)
     if mode == "accept" or mode == "block":
         accept_cookies(page)
     elif mode == "reject":
@@ -179,7 +179,7 @@ def crawl_site(page, site, mode):
         sleep(2)
         reject_cookies(page)
     sleep(5)
-    page.screenshot(path=f"screenshots_{mode}/{site['domain']}_after.png", full_page=True)
+    page.screenshot(path=f"screenshots_{mode}/{site['domain']}_after.png")#, full_page=True)
     scroll_down_in_steps(page)
     sleep(5)
 
