@@ -156,7 +156,7 @@ def crawl_site(page, site, mode):
     url = site['domain']
     page.goto(f"https://{url}")
     sleep(10)
-    page.screenshot(path=f"screenshots_{mode}/{site['domain']}_before.png"), #full_page=True)
+    page.screenshot(path=f"screenshots_{mode}/{site['domain']}_before.png")#, full_page=True)
     if mode == "accept" or mode == "block":
         accept_cookies(page)
     elif mode == "reject":
