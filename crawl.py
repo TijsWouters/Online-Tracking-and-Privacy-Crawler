@@ -44,11 +44,11 @@ def find_and_click(elements, context_url, keywords):
                 print(f"Failed to click button on {context_url} with text: {text}")
     return False
 
-def accept_cookies(page):    # Try on the main page first
+def keywords_click(page, keywords):
     try:
         buttons = page.query_selector_all("button")
         links = page.query_selector_all("a")
-        if find_and_click(buttons + links, page.url, ACCEPT_WORDS):
+        if find_and_click(buttons + links, page.url, keywords):
             return
     except Exception:
         # If querying the main page fails for some reason, continue to frames
@@ -68,7 +68,7 @@ def accept_cookies(page):    # Try on the main page first
             frame_buttons = frame.query_selector_all("button")
             frame_links = frame.query_selector_all("a")
             frame_url = getattr(frame, 'url', page.url)
-            if find_and_click(frame_buttons + frame_links, frame_url, ACCEPT_WORDS):
+            if find_and_click(frame_buttons + frame_links, frame_url, keywords):
                 return
         except Exception:
             # Accessing cross-origin frame contents or detached frames may raise; skip
@@ -76,69 +76,15 @@ def accept_cookies(page):    # Try on the main page first
 
     print(f"No cookie accept button found on {page.url}")
 
+def accept_cookies(page):
+    keywords_click(page, ACCEPT_WORDS)
+
 def open_cookie_settings(page):
-    try:
-        buttons = page.query_selector_all("button")
-        links = page.query_selector_all("a")
-        if find_and_click(buttons + links, page.url, SETTING_WORDS):
-            return
-    except Exception:
-        # If querying the main page fails for some reason, continue to frames
-        pass
-
-    # Then try each iframe/frame (skip main frame when present to avoid duplicate work)
-    try:
-        main_frame = page.main_frame()
-    except Exception:
-        main_frame = None
-
-    for frame in page.frames:
-        try:
-            if main_frame is not None and frame == main_frame:
-                continue
-            # Query buttons and links inside the frame
-            frame_buttons = frame.query_selector_all("button")
-            frame_links = frame.query_selector_all("a")
-            frame_url = getattr(frame, 'url', page.url)
-            if find_and_click(frame_buttons + frame_links, frame_url, SETTING_WORDS):
-                return
-        except Exception:
-            # Accessing cross-origin frame contents or detached frames may raise; skip
-            continue
+    keywords_click(page, SETTING_WORDS)
 
 def reject_cookies(page):
-    # Try on the main page first
-    try:
-        buttons = page.query_selector_all("button")
-        links = page.query_selector_all("a")
-        if find_and_click(buttons + links, page.url, REJECT_WORDS):
-            return
-    except Exception:
-        # If querying the main page fails for some reason, continue to frames
-        print(f"Error querying main page {page.url} for reject buttons")
+    keywords_click(page, REJECT_WORDS)
 
-    # Then try each iframe/frame (skip main frame when present to avoid duplicate work)
-    try:
-        main_frame = page.main_frame()
-    except Exception:
-        main_frame = None
-
-    for frame in page.frames:
-        try:
-            if main_frame is not None and frame == main_frame:
-                continue
-            # Query buttons and links inside the frame
-            frame_buttons = frame.query_selector_all("button")
-            frame_links = frame.query_selector_all("a")
-            frame_url = getattr(frame, 'url', page.url)
-            if find_and_click(frame_buttons + frame_links, frame_url, REJECT_WORDS):
-                return
-        except Exception:
-            # Accessing cross-origin frame contents or detached frames may raise; skip
-            print(f"Error querying frame {frame.url} for reject buttons")
-            continue
-
-    print(f"No cookie reject button found on {page.url}")
 
 def scroll_down_in_steps(page):
     at_bottom = False
