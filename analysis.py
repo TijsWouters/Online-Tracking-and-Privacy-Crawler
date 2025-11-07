@@ -62,6 +62,9 @@ def draw_boxplot(ac_list: list, rej_list: list, blk_list: list, metric: str):
     plt.xlabel('Decision')
     plt.ylabel(f'{metric} per website')
     plt.show()
+    os.makedirs('boxplots', exist_ok=True)
+    plt.savefig(f'boxplots/boxplot_{metric}.png')
+    plt.close()
     
 def test():
     ac_list = []
