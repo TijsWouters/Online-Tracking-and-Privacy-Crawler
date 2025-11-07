@@ -57,9 +57,7 @@ def find_and_click(scope, keywords):
 
 def keywords_click(page, keywords):
     try:
-        buttons = page.query_selector_all("button")
-        links = page.query_selector_all("a")
-        if find_and_click(buttons + links, page.url, keywords):
+        if find_and_click(page, keywords):
             return
     except Exception:
         # If querying the main page fails for some reason, continue to frames
@@ -75,17 +73,14 @@ def keywords_click(page, keywords):
         try:
             if main_frame is not None and frame == main_frame:
                 continue
-            # Query buttons and links inside the frame
-            frame_buttons = frame.query_selector_all("button")
-            frame_links = frame.query_selector_all("a")
-            frame_url = getattr(frame, 'url', page.url)
-            if find_and_click(frame_buttons + frame_links, frame_url, keywords):
+            if find_and_click(frame, keywords):
                 return
         except Exception:
             # Accessing cross-origin frame contents or detached frames may raise; skip
+            print(f"Error querying frame {frame.url} for cookie buttons")
             continue
 
-    print(f"No cookie accept button found on {page.url}")
+    print(f"No cookie button found on {page.url}")
 
 def accept_cookies(page):
     keywords_click(page, ACCEPT_WORDS)
