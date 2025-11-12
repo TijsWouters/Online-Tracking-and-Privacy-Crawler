@@ -2,3 +2,6 @@ playwright==1.55.0
 publicsuffix2
 tld
 matplotlib
+dnspython
+pandas
+seaborn
